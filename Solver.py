@@ -108,8 +108,8 @@ class Solver:
         self.used = {self.depot.ID}
         self.sol = None
         self.bestSolution = None
-        self.minTabuTenure = 30
-        self.maxTabuTenure = 45
+        self.minTabuTenure = 20
+        self.maxTabuTenure = 30
         self.tabuTenure = 30
 
     def solve(self):
@@ -372,53 +372,20 @@ class Solver:
                 rt2: Route = self.sol.routes[targetRouteIndex]
                 for originNodeIndex in range(1, len(rt1.sequenceOfNodes) - 1):
                     for targetNodeIndex in range(0, len(rt2.sequenceOfNodes) - 1):
-
-                        A: Node = rt1.sequenceOfNodes[originNodeIndex - 1]
+                        if originRouteIndex == targetRouteIndex and (
+                                targetNodeIndex == originNodeIndex or targetNodeIndex == originNodeIndex - 1):
+                            continue
                         B: Node = rt1.sequenceOfNodes[originNodeIndex]
-                        cut_of_AB = len(rt1.sequenceOfNodes) - A.positionInRoute - 1
-                        C: Node = rt1.sequenceOfNodes[originNodeIndex + 1]
-                        cut_of_BC = len((rt1.sequenceOfNodes)) - B.positionInRoute - 1
-                        F: Node = rt2.sequenceOfNodes[targetNodeIndex]
-                        G: Node = rt2.sequenceOfNodes[targetNodeIndex + 1]
-                        cut_of_FG = len(rt2.sequenceOfNodes) - F.positionInRoute - 1
-                        oldCost = rt1.cost + rt2.cost
                         if rt1 != rt2:
                             if rt2.load + B.demand > rt2.capacity:
                                 continue
+                            originRtCostChange, targetRtCostChange, moveCost = self.Inner_Route_Relocation_Move(
+                                originRouteIndex, targetRouteIndex, originNodeIndex, targetNodeIndex)
                         else:
-                            # TODO FIX PROBLEM WITH SAME ROUTE RELOCATION MOOVE COST
-                            continue
-                        A: Node = rt1.sequenceOfNodes[originNodeIndex - 1]
-                        B: Node = rt1.sequenceOfNodes[originNodeIndex]
-                        cut_of_AB = len(rt1.sequenceOfNodes) - A.positionInRoute - 1
-                        C: Node = rt1.sequenceOfNodes[originNodeIndex + 1]
-                        cut_of_BC = len((rt1.sequenceOfNodes)) - B.positionInRoute - 1
-                        F: Node = rt2.sequenceOfNodes[targetNodeIndex]
-                        G: Node = rt2.sequenceOfNodes[targetNodeIndex + 1]
-                        cut_of_FG = len(rt2.sequenceOfNodes) - F.positionInRoute - 1
-                        oldCost = rt1.cost + rt2.cost
-                        cost_cummulative_removed_of_rt1 = 0
-                        for i in range(A.positionInRoute, 0, -1):
-                            pred = i - 1
-                            n1 = rt1.sequenceOfNodes[i]
-                            n2 = rt1.sequenceOfNodes[pred]
-                            cost_cummulative_removed_of_rt1 += self.distanceMatrix[n1.ID][n2.ID]
-                        cost_removed = cut_of_AB * self.distanceMatrix[A.ID][B.ID] + cut_of_BC * \
-                                       self.distanceMatrix[B.ID][C.ID]
-                        cost_cummulative_removed_of_rt1 += (len(rt1.sequenceOfNodes) - 2) * 10
-                        originRtCostChange = -cost_cummulative_removed_of_rt1 - \
-                                             cost_removed + cut_of_BC * self.distanceMatrix[A.ID][C.ID]
-                        cost_cummulative_add_of_rt2 = 0
-                        for i in range(F.positionInRoute, 0, -1):
-                            pred = i - 1
-                            n1 = rt2.sequenceOfNodes[i]
-                            n2 = rt2.sequenceOfNodes[pred]
-                            cost_cummulative_add_of_rt2 += self.distanceMatrix[n1.ID][n2.ID]
-                        cost_cummulative_add_of_rt2 += (len(rt2.sequenceOfNodes) - 1) * 10
-                        targetRtCostChange = cost_cummulative_add_of_rt2 - cut_of_FG * self.distanceMatrix[F.ID][G.ID] \
-                                             + cut_of_FG * self.distanceMatrix[B.ID][G.ID] \
-                                             + (cut_of_FG + 1) * self.distanceMatrix[F.ID][B.ID]
-                        moveCost = targetRtCostChange + originRtCostChange
+                            moveCost = self.Intra_Route_Relocation_Move(originRouteIndex, targetRouteIndex,
+                                                                        originNodeIndex, targetNodeIndex)
+                            originRtCostChange = targetRtCostChange = moveCost
+                        # TODO FIX PROBLEM WITH SAME ROUTE RELOCATION MOOVE COST
 
                         if (self.MoveIsTabu(B, iterator, moveCost)):
                             continue
@@ -427,6 +394,81 @@ class Solver:
                             self.StoreBestRelocationMove(originRouteIndex, targetRouteIndex, originNodeIndex,
                                                          targetNodeIndex, moveCost, originRtCostChange,
                                                          targetRtCostChange, rm)
+
+    def Intra_Route_Relocation_Move(self, rt1Index, rt2Index, n1Index, n2Index):
+        rt1 = self.sol.routes[rt1Index]
+        rt2 = self.sol.routes[rt2Index]
+        originNodeIndex = n1Index
+        targetNodeIndex = n2Index
+        A: Node = rt1.sequenceOfNodes[originNodeIndex - 1]
+        B: Node = rt1.sequenceOfNodes[originNodeIndex]
+        C: Node = rt1.sequenceOfNodes[originNodeIndex + 1]
+        F: Node = rt2.sequenceOfNodes[targetNodeIndex]
+        G: Node = rt2.sequenceOfNodes[targetNodeIndex + 1]
+        cut_of_AB = len(rt1.sequenceOfNodes) - A.positionInRoute - 1
+        cut_of_BC = len((rt1.sequenceOfNodes)) - B.positionInRoute - 1
+        cut_of_FG = len(rt2.sequenceOfNodes) - F.positionInRoute - 1
+        if originNodeIndex < targetNodeIndex:
+            costRemoved = cut_of_AB * self.distanceMatrix[A.ID][B.ID] + cut_of_BC * self.distanceMatrix[B.ID][
+                C.ID] + cut_of_FG * self.distanceMatrix[F.ID][G.ID]
+            costAdded = cut_of_AB * self.distanceMatrix[A.ID][C.ID] + cut_of_FG * self.distanceMatrix[B.ID][
+                G.ID] + (
+                                cut_of_FG + 1) * self.distanceMatrix[F.ID][B.ID]
+            prev = C
+            for i in range(C.positionInRoute + 1, F.positionInRoute + 1):
+                nex = rt1.sequenceOfNodes[i]
+                costAdded += self.distanceMatrix[prev.ID][nex.ID]
+                prev = nex
+        else:
+            costAdded = cut_of_BC * self.distanceMatrix[A.ID][C.ID] + cut_of_FG * self.distanceMatrix[F.ID][
+                B.ID] + (cut_of_FG - 1) * self.distanceMatrix[B.ID][G.ID]
+            costRemoved = cut_of_AB * self.distanceMatrix[A.ID][B.ID] + cut_of_BC * self.distanceMatrix[B.ID][
+                C.ID] + cut_of_FG * self.distanceMatrix[F.ID][G.ID]
+            prev = G
+            for i in range(G.positionInRoute + 1, A.positionInRoute + 1):
+                nxt = rt1.sequenceOfNodes[i]
+                costRemoved += self.distanceMatrix[prev.ID][nxt.ID]
+                prev = nxt
+        move_cost = costAdded - costRemoved
+        return move_cost
+
+    def Inner_Route_Relocation_Move(self, rt1Index, rt2Index, node1Index, node2Index):
+        rt1 = self.sol.routes[rt1Index]
+        rt2 = self.sol.routes[rt2Index]
+        originNodeIndex = node1Index
+        targetNodeIndex = node2Index
+        A: Node = rt1.sequenceOfNodes[originNodeIndex - 1]
+        B: Node = rt1.sequenceOfNodes[originNodeIndex]
+        C: Node = rt1.sequenceOfNodes[originNodeIndex + 1]
+        F: Node = rt2.sequenceOfNodes[targetNodeIndex]
+        G: Node = rt2.sequenceOfNodes[targetNodeIndex + 1]
+        cut_of_AB = len(rt1.sequenceOfNodes) - A.positionInRoute - 1
+        cut_of_BC = len((rt1.sequenceOfNodes)) - B.positionInRoute - 1
+        cut_of_FG = len(rt2.sequenceOfNodes) - F.positionInRoute - 1
+        cost_cummulative_removed_of_rt1 = 0
+        for i in range(A.positionInRoute, 0, -1):
+            pred = i - 1
+            n1 = rt1.sequenceOfNodes[i]
+            n2 = rt1.sequenceOfNodes[pred]
+            cost_cummulative_removed_of_rt1 += self.distanceMatrix[n1.ID][n2.ID]
+        cost_removed = cut_of_AB * self.distanceMatrix[A.ID][B.ID] + cut_of_BC * \
+                       self.distanceMatrix[B.ID][C.ID]
+        cost_cummulative_removed_of_rt1 += (len(rt1.sequenceOfNodes) - 2) * 10
+        originRtCostChange = -cost_cummulative_removed_of_rt1 - \
+                             cost_removed + cut_of_BC * self.distanceMatrix[A.ID][C.ID]
+        cost_cummulative_add_of_rt2 = 0
+        for i in range(F.positionInRoute, 0, -1):
+            pred = i - 1
+            n1 = rt2.sequenceOfNodes[i]
+            n2 = rt2.sequenceOfNodes[pred]
+            cost_cummulative_add_of_rt2 += self.distanceMatrix[n1.ID][n2.ID]
+        cost_cummulative_add_of_rt2 += (len(rt2.sequenceOfNodes) - 1) * 10
+        targetRtCostChange = cost_cummulative_add_of_rt2 - cut_of_FG * self.distanceMatrix[F.ID][
+            G.ID] \
+                             + cut_of_FG * self.distanceMatrix[B.ID][G.ID] \
+                             + (cut_of_FG + 1) * self.distanceMatrix[F.ID][B.ID]
+        moveCost = targetRtCostChange + originRtCostChange
+        return originRtCostChange, targetRtCostChange, moveCost
 
     def FindBestSwapMove(self, sm, iterator):
         for firstRouteIndex in range(0, len(self.sol.routes)):
