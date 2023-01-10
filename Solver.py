@@ -499,7 +499,6 @@ class Solver:
                         if rt1 == rt2:
                             # swap move problem in same route
                             # TODO FIX
-                            continue
                             old_cst = rt1
                             if firstNodeIndex == secondNodeIndex - 1:
                                 # case of consecutive nodes swap
@@ -514,7 +513,7 @@ class Solver:
 
                                 costRemoved1 = cut_of_a1_b1 * self.distanceMatrix[a1.ID][b1.ID] + cut_of_b1_c1 * \
                                                self.distanceMatrix[b1.ID][c1.ID]
-                                costAdded1 = cut_of_a1_b1 * self.distanceMatrix[a1.ID][b2.ID] + cut_of_a1_b1 * \
+                                costAdded1 = cut_of_a1_b1 * self.distanceMatrix[a1.ID][b2.ID] + cut_of_b1_c1 * \
                                              self.distanceMatrix[b2.ID][c1.ID]
                                 costRemoved2 = cut_of_a2_b2 * self.distanceMatrix[a2.ID][b2.ID] + cut_of_b2_c2 * \
                                                self.distanceMatrix[b2.ID][c2.ID]

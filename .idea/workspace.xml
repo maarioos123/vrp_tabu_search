@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="475445a6-9103-459a-b005-153a76de4d40" name="Changes" comment="">
+    <list default="true" id="475445a6-9103-459a-b005-153a76de4d40" name="Changes" comment="Fix intra route relocation Move error.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/0.png" beforeDir="false" afterPath="$PROJECT_DIR$/0.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SearchTrajectory.png" beforeDir="false" afterPath="$PROJECT_DIR$/SearchTrajectory.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/Solver.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/final_ts.png" beforeDir="false" afterPath="$PROJECT_DIR$/final_ts.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/solution.txt" beforeDir="false" afterPath="$PROJECT_DIR$/solution.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,7 +24,7 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../optimi" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -94,6 +90,30 @@
       <option name="presentableId" value="Default" />
       <updated>1672236868081</updated>
     </task>
+    <task id="LOCAL-00001" summary="Fix intra route relocation Move error.">
+      <created>1673366920751</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1673366920751</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Fix intra route relocation Move error." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix intra route relocation Move error." />
   </component>
 </project>
