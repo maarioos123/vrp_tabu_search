@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="475445a6-9103-459a-b005-153a76de4d40" name="Changes" comment="Fix intra route relocation Move error.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/Solver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/VRP_Model.py" beforeDir="false" afterPath="$PROJECT_DIR$/VRP_Model.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

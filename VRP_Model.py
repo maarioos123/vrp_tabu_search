@@ -58,3 +58,4 @@ class Route:
         self.cost = 0
         self.capacity = cap
         self.load = 0
+        self.last_node = self.sequenceOfNodes[-1]

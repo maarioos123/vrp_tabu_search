@@ -113,14 +113,184 @@ class Solver:
         self.tabuTenure = 30
 
     def solve(self):
-        self.SetRoutedFlagToFalseForAllCustomers()
         self.ApplyNearestNeighborMethod()
-        # self.geteasysol()
         self.ReportSolution(self.sol)
         self.TabuSearch(0)
-        createOutputTxt(self)
+        # createOutputTxt(self)
         # self.ReportSolution(self.sol)
         return self.sol
+
+    def dot(self, vA, vB):
+        return vA[0] * vB[0] + vA[1] * vB[1]
+
+    def ang(self, lineA, lineB):
+        # Get nicer vector form
+        vA = [(lineA[0][0] - lineA[1][0]), (lineA[0][1] - lineA[1][1])]
+        vB = [(lineB[0][0] - lineB[1][0]), (lineB[0][1] - lineB[1][1])]
+        # Get dot prod
+        dot_prod = self.dot(vA, vB)
+        # Get magnitudes
+        magA = self.dot(vA, vA) ** 0.5
+        magB = self.dot(vB, vB) ** 0.5
+        # Get cosine value
+        cos_ = dot_prod / magA / magB
+        # Get angle in radians and then convert to degrees
+        try:
+            angle = math.acos(dot_prod / magB / magA)
+            ang_deg = math.degrees(angle) % 360
+
+            if ang_deg - 180 >= 0:
+                # As in if statement
+                return 360 - ang_deg
+            else:
+
+                return ang_deg
+        except:
+            return -100
+            pass
+        # Basically doing angle <- angle mod 360
+
+    def find_node(self, r, n):
+
+        dist = self.distanceMatrix[n.ID]
+        nearest_v = 10000000
+        nearest_index = 0
+        for i in range(1, len(dist)):
+            # min_dist = 1000000
+            # for n1 in self.list_of_last_nodes:
+            #     if n1.ID != 0 and self.distanceMatrix[i][n1.ID] < min_dist:
+            #         min_dist = self.distanceMatrix[i][n1.ID]
+
+            if dist[i] < nearest_v and i not in self.used and r.load + self.allNodes[i].demand < r.capacity:
+                nearest_index = i
+                nearest_v = dist[i]
+
+        self.used.add(nearest_index)
+
+        return nearest_index, nearest_v
+
+    def find_route(self, node, multiplier, multiplier2):
+
+        dist = self.distanceMatrix[node.ID]
+        nearest_v = 100000000
+        for l_node in self.list_of_last_nodes:
+
+            waiting_time = dist[l_node.ID] + l_node.waitingtime
+            waiting_time = multiplier * dist[l_node.ID] + l_node.waitingtime
+            if l_node.ID == 0:
+                if waiting_time < nearest_v:
+                    nearest_node = l_node
+                    nearest_v = waiting_time
+            else:
+                lineA = ((l_node.x, l_node.y), (node.x, node.y))
+                previous_node = l_node.route.sequenceOfNodes[-2]
+                lineB = ((l_node.x, l_node.y), (previous_node.x, previous_node.y))
+
+                angle = self.ang(lineA, lineB)
+                if angle != -100:
+                    val = 180 - angle
+                    objective = waiting_time
+
+                    if val < 30:
+                        objective = multiplier2 * waiting_time
+                    elif val < 40:
+                        objective = (multiplier2 + 0.05) * waiting_time
+                    elif val > 110:
+                        objective = 1.2 * waiting_time
+
+                    if objective < nearest_v and l_node.route.load + node.demand < l_node.route.capacity:
+                        nearest_node = l_node
+                        self.hhh = dist[l_node.ID]
+                        nearest_v = waiting_time
+                else:
+                    if waiting_time < nearest_v and l_node.route.load + node.demand < l_node.route.capacity:
+                        nearest_node = l_node
+                        nearest_v = waiting_time
+
+        nearest_v -= (multiplier - 1) * dist[nearest_node.ID]
+
+        return nearest_node, nearest_v
+
+    def find_less_distant_node(self, multiplier, multiplier2):
+        dist_of_most_distant = 1000000
+        for node in self.customers:
+            if node.isRouted == False:
+                nearest_node, nearest_v = self.find_route(node, multiplier, multiplier2)
+                if nearest_v < dist_of_most_distant:
+                    dist_of_most_distant = nearest_v
+                    most_distant = node
+        return most_distant
+
+    # def find_most_distant_node(self,multiplier):
+    #     dist_of_most_distant = -1000000
+    #     for node in self.customers:
+    #         if node.isRouted == False:
+    #             nearest_node, nearest_v = self.find_route(node,multiplier)
+    #             if nearest_v > dist_of_most_distant:
+    #                 dist_of_most_distant = nearest_v
+    #                 most_distant = node
+    #     return most_distant
+    def find_nearest_node_to_depot(self):
+        dist = self.distanceMatrix[0]
+        min = 100000000
+        for c in self.customers:
+            if dist[c.ID] < min:
+                min_node = c
+                min = dist[c.ID]
+
+        return min_node, min
+
+    def ApplyNearestNeighborMethod(self):
+        modelIsFeasible = True
+        self.sol = Solution()
+
+        for i in range(0, 14):
+            self.sol.routes.append(Route(self.depot, self.capacity))
+            self.sol.routes[i].ID = i
+
+        # j = 0
+        self.list_of_last_nodes = [r.last_node for r in self.sol.routes]
+
+        number_of_unrouted_nodes = 100
+        for i in range(number_of_unrouted_nodes):
+            if i == 0:
+                node, value = self.find_nearest_node_to_depot()
+                route = self.sol.routes[0]
+            else:
+                multiplier = 1.3
+
+                multiplier2 = 0.8
+                node = self.find_less_distant_node(multiplier, multiplier2)
+
+                nearest_last_node, value = self.find_route(node, multiplier, multiplier2)
+                if nearest_last_node.ID == 0:
+                    for r in self.sol.routes:
+                        if len(r.sequenceOfNodes) == 1:
+                            route = r
+                            break
+                else:
+                    route = nearest_last_node.route
+
+            self.used.add(node.ID)
+            node.isRouted = True
+            if len(route.sequenceOfNodes) != 1:
+                node.waitingtime += 10
+            node.waitingtime += value
+
+            # route = nearest_last_node.route
+            route.cost += node.waitingtime
+            self.sol.cost += node.waitingtime
+            route.load += node.demand
+            node.cost_up_to_here = route.cost
+            node.positionInRoute = len(route.sequenceOfNodes)
+            route.sequenceOfNodes.append(node)
+            node.route = route
+            route.last_node = node
+            self.list_of_last_nodes[route.ID] = node
+
+        if (modelIsFeasible == False):
+            print('FeasibilityIssue')
+            # reportSolution
 
     def geteasysol(self):
         routes = [[52, 88, 7, 82, 48, 8, 46], [89, 18, 60, 83, 5, 17, 47, 36], [12, 68, 80, 29, 24, 65],
@@ -155,132 +325,9 @@ class Solver:
             j: Route
             self.updates_cost_and_positions(j)
 
-    def SetRoutedFlagToFalseForAllCustomers(self):
-        for i in range(0, len(self.customers)):
-            self.customers[i].isRouted = False
 
-    def Always_keep_an_empty_route(self):
-        if len(self.sol.routes) == 0:
-            rt = Route(self.depot, self.capacity)
-            self.sol.routes.append(rt)
-        else:
-            rt = self.sol.routes[-1]
-            if len(rt.sequenceOfNodes) > 2:
-                rt = Route(self.depot, self.capacity)
-                self.sol.routes.append(rt)
 
-    def IdentifyMinimumCostInsertion(self, best_insertion):
-        for i in range(0, len(self.customers)):
-            candidateCust: Node = self.customers[i]
-            if candidateCust.isRouted is False:
-                for rt in self.sol.routes:
-                    if rt.load + candidateCust.demand <= rt.capacity:
-                        for j in range(0, len(rt.sequenceOfNodes) - 1):
-                            A = rt.sequenceOfNodes[j]
-                            B = rt.sequenceOfNodes[j + 1]
-                            costAdded = self.distanceMatrix[A.ID][candidateCust.ID] + \
-                                        self.distanceMatrix[candidateCust.ID][
-                                            B.ID]
-                            costRemoved = self.distanceMatrix[A.ID][B.ID]
-                            trialCost = costAdded - costRemoved
-                            if trialCost < best_insertion.cost:
-                                best_insertion.customer = candidateCust
-                                best_insertion.route = rt
-                                best_insertion.insertionPosition = j
-                                best_insertion.cost = trialCost
-                    else:
-                        continue
 
-    def MinimumInsertions(self):
-        model_is_feasible = True
-        self.sol = Solution()
-        insertions = 0
-
-        while insertions < len(self.customers):
-            best_insertion = CustomerInsertionAllPositions()
-            self.Always_keep_an_empty_route()
-            self.IdentifyMinimumCostInsertion(best_insertion)
-
-            if best_insertion.customer is not None:
-                self.ApplyCustomerInsertionAllPositions(best_insertion)
-                insertions += 1
-            else:
-                print('FeasibilityIssue')
-                model_is_feasible = False
-                break
-
-        if model_is_feasible:
-            self.TestSolution()
-
-    def ApplyCustomerInsertionAllPositions(self, insertion):
-        insCustomer = insertion.customer
-        rt = insertion.route
-        # before the second depot occurrence
-        insIndex = insertion.insertionPosition
-        rt.sequenceOfNodes.insert(insIndex + 1, insCustomer)
-        rt.cost += insertion.cost
-        self.sol.cost += insertion.cost
-        rt.load += insCustomer.demand
-        insCustomer.isRouted = True
-
-    def IdentifyBestInsertionAllPositions(self, bestInsertion, rt):
-        for i in range(0, len(self.customers)):
-            candidateCust: Node = self.customers[i]
-            if candidateCust.isRouted is False:
-                if rt.load + candidateCust.demand <= rt.capacity:
-                    lastNodePresentInTheRoute = rt.sequenceOfNodes[-2]
-                    for j in range(0, len(rt.sequenceOfNodes) - 1):
-                        A = rt.sequenceOfNodes[j]
-                        B = rt.sequenceOfNodes[j + 1]
-                        costAdded = self.distanceMatrix[A.ID][candidateCust.ID] + self.distanceMatrix[candidateCust.ID][
-                            B.ID]
-                        costRemoved = self.distanceMatrix[A.ID][B.ID]
-                        trialCost = costAdded - costRemoved
-
-                        if trialCost < bestInsertion.cost:
-                            bestInsertion.customer = candidateCust
-                            bestInsertion.route = rt
-                            bestInsertion.cost = trialCost
-                            bestInsertion.insertionPosition = j
-
-    def find_node(self, r, n):
-        dist = self.distanceMatrix[n.ID]
-        nearest_v = 10000000
-        nearest_index = 0
-        for i in range(0, len(dist)):
-            if dist[i] < nearest_v and i not in self.used and r.load + self.allNodes[i].demand < r.capacity:
-                nearest_index = i
-                nearest_v = dist[i]
-        self.used.add(nearest_index)
-        return nearest_index, nearest_v
-
-    def ApplyNearestNeighborMethod(self):
-        modelIsFeasible = True
-        self.sol = Solution()
-        for i in range(0, 14):
-            self.sol.routes.append(Route(self.depot, self.capacity))
-        j = 0
-        for i in range(1, len(self.allNodes)):
-            route_index = j % 14
-            route: Route = self.sol.routes[route_index]
-            last_node: Node = route.sequenceOfNodes[-1]
-            nearest_possible, value = self.find_node(route, last_node)
-            n1: Node = self.allNodes[nearest_possible]
-            n1.isRouted = True
-            up_coming_len = len(route.sequenceOfNodes) + 1
-            if up_coming_len > 2:
-                n1.waitingtime += 10
-            n1.waitingtime += last_node.waitingtime + value
-            route.cost += n1.waitingtime
-            route.load += n1.demand
-            n1.cost_up_to_here = route.cost
-            n1.positionInRoute = len(route.sequenceOfNodes)
-            route.sequenceOfNodes.append(n1)
-            j += 1
-
-        if (modelIsFeasible == False):
-            print('FeasibilityIssue')
-            # reportSolution
 
     def TabuSearch(self, operator):
         solution_cost_trajectory = []
@@ -301,26 +348,37 @@ class Solver:
             rm.Initialize()
             sm.Initialize()
             top.Initialize()
-            for i in self.sol.routes:
-                self.updates_cost_and_positions(i)
 
             # Relocations
             if operator == 0:
                 self.FindBestRelocationMove(rm, localSearchIterator)
                 if rm.originRoutePosition is not None:
                     self.ApplyRelocationMove(rm, localSearchIterator)
+                    if rm.originRoutePosition == rm.targetRoutePosition:
+                        self.updates_cost_and_positions(self.sol.routes[rm.originRoutePosition])
+                    else:
+                        self.updates_cost_and_positions(self.sol.routes[rm.originRoutePosition])
+                        self.updates_cost_and_positions(self.sol.routes[rm.targetRoutePosition])
             # Swaps
             elif operator == 1:
                 self.FindBestSwapMove(sm, localSearchIterator)
                 if sm.positionOfFirstRoute is not None:
                     self.ApplySwapMove(sm, localSearchIterator)
+                    if sm.positionOfFirstRoute == sm.positionOfSecondRoute:
+                        self.updates_cost_and_positions(self.sol.routes[sm.positionOfFirstRoute])
+                    else:
+                        self.updates_cost_and_positions(self.sol.routes[sm.positionOfFirstRoute])
+                        self.updates_cost_and_positions(self.sol.routes[sm.positionOfSecondRoute])
             elif operator == 2:
                 self.FindBestTwoOptMove(top, localSearchIterator)
                 if top.positionOfFirstRoute is not None:
                     self.ApplyTwoOptMove(top, localSearchIterator)
+                    if top.positionOfFirstRoute == top.positionOfSecondRoute:
+                        self.updates_cost_and_positions(self.sol.routes[top.positionOfFirstRoute])
+                    else:
+                        self.updates_cost_and_positions(self.sol.routes[top.positionOfFirstRoute])
+                        self.updates_cost_and_positions(self.sol.routes[top.positionOfSecondRoute])
 
-            # self.ReportSolution(self.sol)
-            self.TestSolution()
             solution_cost_trajectory.append(self.sol.cost)
 
             print(localSearchIterator, self.sol.cost, self.bestSolution.cost)
@@ -385,7 +443,6 @@ class Solver:
                             moveCost = self.Intra_Route_Relocation_Move(originRouteIndex, targetRouteIndex,
                                                                         originNodeIndex, targetNodeIndex)
                             originRtCostChange = targetRtCostChange = moveCost
-                        # TODO FIX PROBLEM WITH SAME ROUTE RELOCATION MOOVE COST
 
                         if (self.MoveIsTabu(B, iterator, moveCost)):
                             continue
@@ -497,8 +554,6 @@ class Solver:
                         costChangeFirstRoute = None
                         costChangeSecondRoute = None
                         if rt1 == rt2:
-                            # swap move problem in same route
-                            # TODO FIX
                             old_cst = rt1
                             if firstNodeIndex == secondNodeIndex - 1:
                                 # case of consecutive nodes swap
@@ -548,7 +603,6 @@ class Solver:
                                                    moveCost, costChangeFirstRoute, costChangeSecondRoute, sm)
 
     def ApplyRelocationMove(self, rm: RelocationMove, iterator):
-        oldCost = self.CalculateTotalCost(self.sol)
 
         originRt = self.sol.routes[rm.originRoutePosition]
         targetRt = self.sol.routes[rm.targetRoutePosition]
@@ -575,15 +629,9 @@ class Solver:
 
         self.sol.cost += rm.moveCost
 
-        newCost = self.CalculateTotalCost(self.sol)
-        # debuggingOnly
         self.SetTabuIterator(B, iterator)
-        # debuggingOnly
-        if abs((newCost - oldCost) - rm.moveCost) > 0.0001:
-            print(rm.originRoutePosition, rm.originNodePosition, rm.targetRoutePosition, rm.targetNodePosition)
 
     def ApplySwapMove(self, sm, iterator):
-        oldCost = self.CalculateTotalCost(self.sol)
         rt1 = self.sol.routes[sm.positionOfFirstRoute]
         rt2 = self.sol.routes[sm.positionOfSecondRoute]
         b1: Node = rt1.sequenceOfNodes[sm.positionOfFirstNode]
@@ -609,15 +657,9 @@ class Solver:
 
         self.sol.cost += sm.moveCost
 
-        newCost = self.CalculateTotalCost(self.sol)
-        # debuggingOnly
 
         self.SetTabuIterator(b1, iterator)
         self.SetTabuIterator(b2, iterator)
-        # debuggingOnly
-        if abs((newCost - oldCost) - sm.moveCost) > 0.0001:
-            print(sm.positionOfFirstRoute, sm.positionOfFirstNode, sm.positionOfSecondRoute, sm.positionOfSecondNode)
-            print('Cost Issue from swap')
 
     def ReportSolution(self, sol):
         tc = 0
@@ -630,7 +672,6 @@ class Solver:
                     print("," + str(rt.sequenceOfNodes[j].ID), end=' ')
             print(rt.cost, rt.sequenceOfNodes[-1].cost_up_to_here)
             tc += rt.cost
-            sol.cost += rt.cost
         print(tc)
 
     def GetLastOpenRoute(self):
@@ -747,7 +788,7 @@ class Solver:
 
                             moveCost = self.same_route_two_opt(nodeInd1, nodeInd2, rt1)
                         else:
-                            if nodeInd1 == 0 or nodeInd2 == 0:
+                            if nodeInd1 == 0 and nodeInd2 == 0:
                                 # NEED TO BE AND
                                 # IS A PROBLEM THAT IF ONE OF THE NODEIND =0 THEN THE COST IS NOT CALCULATED PROPERLY
                                 # TODO FIX
@@ -845,7 +886,6 @@ class Solver:
     def ApplyTwoOptMove(self, top, iterator):
         rt1: Route = self.sol.routes[top.positionOfFirstRoute]
         rt2: Route = self.sol.routes[top.positionOfSecondRoute]
-        oldCost = self.CalculateTotalCost(self.sol)
         if rt1 == rt2:
             # reverses the nodes in the segment [positionOfFirstNode + 1,  top.positionOfSecondNode]
             reversedSegment = reversed(rt1.sequenceOfNodes[top.positionOfFirstNode + 1: top.positionOfSecondNode + 1])
@@ -881,12 +921,6 @@ class Solver:
             self.SetTabuIterator(rt2.sequenceOfNodes[top.positionOfSecondNode], iterator)
 
         self.sol.cost += top.moveCost
-        newCost = self.CalculateTotalCost(self.sol)
-        if abs((newCost - oldCost) - top.moveCost) > 0.0001:
-            print("Tryed to do top from Node " + str(top.positionOfFirstNode) + " of Route " + str(
-                top.positionOfFirstRoute) + " to Node " + str(top.positionOfSecondNode) + " of Route " + str(
-                top.positionOfSecondRoute))
-            print('Cost Issue')
 
     def UpdateRouteCostAndLoad(self, rt: Route):
         tc = 0
